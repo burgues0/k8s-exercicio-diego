@@ -18,3 +18,6 @@ spec:
         imagePullPolicy: IfNotPresent
         ports:
         - containerPort: 8000
+        env:
+        - name: DATABASE_URL
+          value: "postgresql://admin:admin@postgres-service:5432/postgres"
