@@ -17,7 +17,7 @@ spec:
         image: api-python-exercicio
         imagePullPolicy: IfNotPresent
         ports:
-        - containerPort: 8000
+        - containerPort: 5000
         env:
         - name: DATABASE_URL
           value: "postgresql://admin:admin@postgres-service:5432/postgres"
