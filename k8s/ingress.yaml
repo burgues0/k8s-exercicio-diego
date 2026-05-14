@@ -2,6 +2,7 @@ apiVersion: networking.k8s.io/v1
 kind: Ingress
 metadata:
   name: api-python-ingress
+  namespace: ns-scale
 spec:
   rules:
     - http:
