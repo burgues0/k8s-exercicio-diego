@@ -6,10 +6,8 @@ user@hostname:~$ cd k8s-exercicio-diego
 user@hostname:~/k8s-exercicio-diego$ docker build -t api-python-exercicio .
 user@hostname:~/k8s-exercicio-diego$ k3d image import api-python-exercicio -c devops-diego
 user@hostname:~/k8s-exercicio-diego$ cd k8s
-user@hostname:~/k8s-exercicio-diego/k8s$ k apply -f ingress.yaml
-user@hostname:~/k8s-exercicio-diego/k8s$ k apply -f service.yaml
-user@hostname:~/k8s-exercicio-diego/k8s$ k apply -f deployment.yaml
-user@hostname:~/k8s-exercicio-diego/k8s$ k apply -f postgres.yaml
+user@hostname:~/k8s-exercicio-diego/k8s$ k apply -Rf .
+user@hostname:~/k8s-exercicio-diego/k8s$ k apply -f https://github.com/kubernetes-sigs/metrics-server/releases/latest/download/components.yaml
 ```
 
 ## Teste
