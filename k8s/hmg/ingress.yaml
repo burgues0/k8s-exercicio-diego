@@ -1,16 +1,17 @@
 apiVersion: networking.k8s.io/v1
 kind: Ingress
 metadata:
-  name: api-python-ingress
-  namespace: ns-scale
+  name: api-node-ingress
+  namespace: ns-hmg
 spec:
   rules:
-    - http:
+    - host: hmg.local
+      http:
         paths:
           - path: /
             pathType: Prefix
             backend:
               service:
-                name: api-python-service
+                name: api-node-service
                 port:
                   number: 80
