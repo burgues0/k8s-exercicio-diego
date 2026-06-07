@@ -19,7 +19,7 @@ spec:
             nodeSelectorTerms:
               - matchExpressions:
                   - key: ambiente
-                    operator: in
+                    operator: In
                     values:
                       - dev
       containers:
