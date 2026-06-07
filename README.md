@@ -6,6 +6,9 @@ user@hostname:~$ cd k8s-exercicio-diego
 user@hostname:~/k8s-exercicio-diego$ docker build -t api-node-exercicio .
 user@hostname:~/k8s-exercicio-diego$ k3d image import api-node-exercicio -c devops-diego
 user@hostname:~/k8s-exercicio-diego$ cd k8s
+user@hostname:~/k8s-exercicio-diego$ kubectl get nodes
+user@hostname:~/k8s-exercicio-diego$ kubectl label node k3d-devops-diego-agent-0 ambiente=dev
+user@hostname:~/k8s-exercicio-diego$ kubectl label node k3d-devops-diego-agent-1 ambiente=hmg
 user@hostname:~/k8s-exercicio-diego/k8s$ kubectl apply -f dev/ns.yaml
 user@hostname:~/k8s-exercicio-diego/k8s$ kubectl apply -f hmg/ns.yaml
 user@hostname:~/k8s-exercicio-diego/k8s$ kubectl apply -Rf dev/.
