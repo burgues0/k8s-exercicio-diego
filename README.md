@@ -1,6 +1,6 @@
 # Step by Step
 ```
-user@hostname:~$ git clone git@github.com:burgues0/k8s-exercicio-diego.git
+user@hostname:~$ git clone -b knex-pg git@github.com:burgues0/k8s-exercicio-diego.git
 user@hostname:~$ k3d cluster create devops-diego --servers 1 --agents 3 -p "8080:80@loadbalancer"
 user@hostname:~$ cd k8s-exercicio-diego
 user@hostname:~/k8s-exercicio-diego$ docker build -t api-python-exercicio .
