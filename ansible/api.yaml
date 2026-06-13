@@ -1,0 +1,38 @@
+- name: Configurar APIs no Azure
+  hosts: apis
+  become: true
+  tasks:
+    - name: atualizar apt
+      apt:
+        update_cache: yes
+    
+    - name: instalar node
+      apt:
+        name:
+          - nodejs
+          - npm
+        state: present
+
+    - name: criar diretorios
+      file:
+        path: /opt/api
+        state: directory
+        mode: '0755'
+        owner: azureuser
+    
+    - name: copiar arquivos
+      copy:
+        src: ../api/
+        dest: /opt/api/
+        owner: azureuser
+    
+    - name: instalar deps npm
+      npm:
+        path: /opt/api
+    
+    - name: validar porta 3000 e iniciar api
+      shell: |
+        fuser -k 3000/tcp || true
+        nohup npm start --prefix /opt/api > /dev/null 2>&1 &
+      async: 10
+      poll: 0

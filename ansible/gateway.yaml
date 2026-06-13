@@ -1,0 +1,39 @@
+- name: Configurar gateway nginx no Azure
+  hosts: gateway
+  become: true
+  tasks:
+    - name: atualizar apt
+      apt:
+        update_cache: yes
+    
+    - name: instalar nginx
+      apt:
+        name: nginx
+        state: present
+    
+    - name: setup nginx
+      copy:
+        dest: /etc/nginx/sites-available/default
+        content: |
+          upstream backend_apis {
+              server 10.0.10.4:3000;
+              server 10.0.10.5:3000;
+          }
+
+          server {
+              listen 80;
+
+              location / {
+                  proxy_pass http://backend_apis;
+                  proxy_set_header Host $host;
+                  proxy_set_header X-Real-IP $remote_addr;
+                  proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for;
+                  proxy_set_header X-Forwarded-Proto $scheme;
+              }
+          }
+
+    - name: restart nginx
+      service:
+        name: nginx
+        state: restarted
+        enabled: yes
