@@ -1,0 +1,42 @@
+- name: configurar nginx
+  hosts: api_server
+  become: true
+  tasks:
+    - name: instalar nginx
+      apt:
+        name: nginx
+        state: present
+        update_cache: yes
+
+    - name: configurar nginx
+      copy:
+        dest: /etc/nginx/sites-available/api_gateway
+        content: |
+          server {
+              listen 5000;
+              location / {
+                  proxy_pass http://localhost:3000;
+                  proxy_http_version 1.1;
+                  proxy_set_header Upgrade $http_upgrade;
+                  proxy_set_header Connection 'upgrade';
+                  proxy_set_header Host $host;
+                  proxy_cache_bypass $http_upgrade;
+              }
+          }
+
+    - name: symlink
+      file:
+        src: /etc/nginx/sites-available/api_gateway
+        dest: /etc/nginx/sites-enabled/api_gateway
+        state: link
+
+    - name: remover config padrão nginx
+      file:
+        path: /etc/nginx/sites-enabled/default
+        state: absent
+
+    - name: reiniciar nginx
+      service:
+        name: nginx
+        state: restarted
+        enabled: yes
