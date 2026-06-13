@@ -3,5 +3,5 @@ output "instance_id" {
 }
 
 output "rds_endpoint" {
-    value = aws_db_instance.postgres.endpoint
+    value = terraform_data.mock_rds.output.endpoint
 }
