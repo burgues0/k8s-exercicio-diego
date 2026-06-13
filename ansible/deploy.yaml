@@ -1,0 +1,51 @@
+- name: Deployar API na EC2
+  hosts: api_server
+  become: true
+
+  tasks:
+
+    - name: Criar diretorio da aplicacao
+      file:
+        path: /opt/api
+        state: directory
+
+    - name: Copiar arquivos da API
+      copy:
+        src: app/
+        dest: /opt/api/
+
+    - name: Instalar dependencias npm
+      shell: npm install
+      args:
+        chdir: /opt/api
+
+    - name: Iniciar API em background
+      shell: node api.js >> /var/log/api.log 2>&1
+      args:
+        chdir: /opt/api
+      async: 1000
+      poll: 0
+
+    - name: Aguardar API iniciar
+      wait_for:
+        port: 5000
+        delay: 2
+        timeout: 30
+
+    - name: Inserir alunos no DynamoDB
+      shell: |
+        AWS_ACCESS_KEY_ID=test AWS_SECRET_ACCESS_KEY=test \
+        aws --endpoint-url={{ localstack_endpoint }} --region us-east-1 \
+        dynamodb put-item --table-name alunos --item '{{ item }}'
+      loop:
+        - '{"id":{"S":"1"},"nome":{"S":"João Silva"},"curso":{"S":"DevOps"},"email":{"S":"joao@email.com"}}'
+        - '{"id":{"S":"2"},"nome":{"S":"Maria Santos"},"curso":{"S":"Kubernetes"},"email":{"S":"maria@email.com"}}'
+        - '{"id":{"S":"3"},"nome":{"S":"Pedro Costa"},"curso":{"S":"Terraform"},"email":{"S":"pedro@email.com"}}'
+
+    - name: Verificar API
+      shell: curl -s http://localhost:5000/health
+      register: response
+
+    - name: Mostrar resposta
+      debug:
+        var: response.stdout

@@ -1,0 +1,31 @@
+services:
+  localstack:
+    image: localstack/localstack:3.8
+    container_name: localstack
+    ports:
+      - "4566:4566"
+    environment:
+      - SERVICES=ec2,dynamodb
+      - DEFAULT_REGION=us-east-1
+      - AWS_DEFAULT_REGION=us-east-1
+    volumes:
+      - /var/run/docker.sock:/var/run/docker.sock
+    healthcheck:
+      test: ["CMD", "bash", "-c", "curl -sf http://localhost:4566/_localstack/health | grep -q '\"ec2\"'"]
+      interval: 5s
+      timeout: 10s
+      retries: 20
+      start_period: 10s
+
+  vm:
+    build: ./vm
+    container_name: vm
+    ports:
+      - "2222:22"
+      - "5000:5000"
+    healthcheck:
+      test: ["CMD-SHELL", "bash -c 'echo > /dev/tcp/localhost/22'"]
+      interval: 5s
+      timeout: 5s
+      retries: 10
+      start_period: 5s
