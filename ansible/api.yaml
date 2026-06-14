@@ -3,7 +3,8 @@
   become: true
   vars:
     app_dir: /var/www/api
-    db_host: "localstack"
+    db_host: "172.26.0.1"
+    db_port: "7001"
     db_name: "app_database"
     db_user: "postgres"
     db_pass: "postgres"
@@ -25,10 +26,19 @@
         dest: "{{ app_dir }}/.env"
         content: |
           DB_HOST={{ db_host }}
+          DB_PORT={{ db_port }}
           DB_NAME={{ db_name }}
           DB_USER={{ db_user }}
           DB_PASSWORD={{ db_pass }}
           DB_DIALECT=postgres
+
+    - name: verificar .env gerado
+      command: cat /var/www/api/.env
+      register: env_content
+
+    - name: mostrar .env
+      debug:
+        var: env_content.stdout_lines
 
     - name: npm install
       npm:
@@ -50,6 +60,8 @@
       ignore_errors: yes
 
     - name: init api
-      shell: "nohup node index.js > app.log 2>&1 &"
+      shell: "nohup node index.js > /var/www/api/app.log 2>&1 &"
       args:
         chdir: "{{ app_dir }}"
+      async: 10
+      poll: 0
