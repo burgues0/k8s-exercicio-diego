@@ -36,7 +36,4 @@
         state: absent
 
     - name: reiniciar nginx
-      service:
-        name: nginx
-        state: restarted
-        enabled: yes
+      shell: nginx -s reload || nginx

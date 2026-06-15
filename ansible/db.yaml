@@ -1,0 +1,50 @@
+- name: configurar bd postgres
+  hosts: db_server
+  become: true
+  vars:
+    db_name: "app_database"
+    db_user: "postgres"
+    db_pass: "postgres"
+
+  tasks:
+    - name: checar status postgres
+      service:
+        name: postgresql
+        state: started
+        enabled: yes
+
+    - name: configurar pg wildcard
+      lineinfile:
+        path: /etc/postgresql/14/main/postgresql.conf
+        regexp: "^#?listen_addresses ="
+        line: "listen_addresses = '*'"
+      notify: reiniciar postgres
+
+    - name: auth md5
+      postgresql_pg_hba:
+        dest: /etc/postgresql/14/main/pg_hba.conf
+        contype: host
+        databases: all
+        method: md5
+        users: all
+        address: 0.0.0.0/0
+      notify: reiniciar postgres
+
+    - name: aplicar config de rede
+      meta: flush_handlers
+
+    - name: criar tabela
+      postgresql_db:
+        name: "{{ db_name }}"
+      become_user: postgres
+
+    - name: criar user
+      postgresql_user:
+        name: "{{ db_user }}"
+        password: "{{ db_pass }}"
+        role_attr_flags: SUPERUSER
+      become_user: postgres
+
+  handlers:
+  - name: reiniciar postgres
+    shell: service postgresql restart

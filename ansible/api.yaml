@@ -3,7 +3,7 @@
   become: true
   vars:
     app_dir: /var/www/api
-    db_host: "localstack"
+    db_host: "vm_postgres"
     db_name: "app_database"
     db_user: "postgres"
     db_pass: "postgres"
@@ -50,6 +50,7 @@
       ignore_errors: yes
 
     - name: init api
-      shell: "nohup node index.js > app.log 2>&1 &"
+      shell: "setsid node index.js > app.log 2>&1 &"
       args:
         chdir: "{{ app_dir }}"
+        executable: /bin/bash
