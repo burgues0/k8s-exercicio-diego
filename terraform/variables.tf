@@ -9,3 +9,9 @@ variable "server_name" {
     type = string
     default = "api-server"
 }
+
+variable "database_name" {
+    description = "Nome do banco de dados"
+    type = string
+    default = "postgres-db"
+}
