@@ -1,0 +1,84 @@
+name: ci-pipeline
+
+on:
+  workflow_dispatch
+
+concurrency:
+  group: build-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  ci-node-auth:
+    uses: ./.github/workflows/ci-node.yaml
+    with:
+      workdir: ./api/auth-api
+
+  ci-code-scan-auth:
+    uses: ./.github/workflows/ci-code-scan.yaml
+    with:
+      workdir: ./api/auth-api
+    secrets:
+      SONAR_TOKEN: ${{ secrets.SONAR_TOKEN }}
+      SONAR_HOST_URL: ${{ secrets.SONAR_HOST_URL }}
+      SONAR_PROJECT_KEY: ${{ secrets.SONAR_PROJECT_KEY }}
+      SONAR_SOURCES: ${{ secrets.SONAR_SOURCES }}
+
+  ci-docker-auth:
+    uses: ./.github/workflows/ci-docker.yaml
+    needs: ci-code-scan-auth
+    with:
+      workdir: ./api/auth-api
+      service_name: auth-api
+    secrets:
+      DOCKERHUB_USERNAME: ${{ secrets.DOCKERHUB_USERNAME }}
+      DOCKERHUB_TOKEN: ${{ secrets.DOCKERHUB_TOKEN }}
+
+  ci-node-fe:
+    uses: ./.github/workflows/ci-node.yaml
+    with:
+      workdir: ./api/frontend
+
+  ci-code-scan-fe:
+    uses: ./.github/workflows/ci-code-scan.yaml
+    with:
+      workdir: ./api/frontend
+    secrets:
+      SONAR_TOKEN: ${{ secrets.SONAR_TOKEN }}
+      SONAR_HOST_URL: ${{ secrets.SONAR_HOST_URL }}
+      SONAR_PROJECT_KEY: ${{ secrets.SONAR_PROJECT_KEY }}
+      SONAR_SOURCES: ${{ secrets.SONAR_SOURCES }}
+
+  ci-docker-fe:
+    uses: ./.github/workflows/ci-docker.yaml
+    needs: ci-code-scan-fe
+    with:
+      workdir: ./api/frontend
+      service_name: frontend
+    secrets:
+      DOCKERHUB_USERNAME: ${{ secrets.DOCKERHUB_USERNAME }}
+      DOCKERHUB_TOKEN: ${{ secrets.DOCKERHUB_TOKEN }}
+
+  ci-node-be:
+    uses: ./.github/workflows/ci-node.yaml
+    with:
+      workdir: ./api/backend
+
+  ci-code-scan-be:
+    uses: ./.github/workflows/ci-code-scan.yaml
+    with:
+      workdir: ./api/backend
+    secrets:
+      SONAR_TOKEN: ${{ secrets.SONAR_TOKEN }}
+      SONAR_HOST_URL: ${{ secrets.SONAR_HOST_URL }}
+      SONAR_PROJECT_KEY: ${{ secrets.SONAR_PROJECT_KEY }}
+      SONAR_SOURCES: ${{ secrets.SONAR_SOURCES }}
+
+  ci-docker-be:
+    uses: ./.github/workflows/ci-docker.yaml
+    needs: ci-code-scan-be
+    with:
+      workdir: ./api/backend
+      service_name: backend
+    secrets:
+      DOCKERHUB_USERNAME: ${{ secrets.DOCKERHUB_USERNAME }}
+      DOCKERHUB_TOKEN: ${{ secrets.DOCKERHUB_TOKEN }}
