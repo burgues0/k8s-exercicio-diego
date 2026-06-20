@@ -2,6 +2,11 @@ name: CI-Code-Scan
 
 on:
   workflow_call:
+    inputs:
+      workdir:
+        required: true
+        type: string
+        description: "project working directory"
     secrets:
       SONAR_TOKEN:
         required: true
@@ -25,6 +30,7 @@ jobs:
           SONAR_TOKEN: ${{ secrets.SONAR_TOKEN }}
           SONAR_HOST_URL: ${{ secrets.SONAR_HOST_URL }}
         with:
+          projectBaseDir: ${{ inputs.workdir }}
           args: >
             -Dsonar.projectKey=${{ secrets.SONAR_PROJECT_KEY }}
             -Dsonar.sources=${{ secrets.SONAR_SOURCES }}
