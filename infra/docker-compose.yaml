@@ -1,7 +1,9 @@
 services:
   gh-runner:
-    image: ubuntu:latest
+    build: ./gh_runner
     container_name: gh_runner
+    ports:
+      - "2222:22"
 
   postgresql:
     image: postgres:17-alpine
