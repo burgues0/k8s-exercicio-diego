@@ -1,0 +1,40 @@
+name: ci-node
+
+on:
+  workflow_call:
+    inputs:
+      workdir:
+        required: true
+        type: string
+        description: "project working directory"
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: ${{ inputs.workdir }}
+    steps:
+      - name: checkout repo
+        uses: actions/checkout@v6
+
+      - name: node setup
+        uses: actions/setup-node@v6
+        with:
+          node-version: '20'
+
+      - name: install dependencies
+        run: npm install
+
+      - name: npm audit
+        run: npm audit fix --force
+
+      - name: npm lint
+        run: npm run lint --if-present
+
+      - name: npm unit tests
+        run: npm test
+        continue-on-error: true
+
+      - name: npm build
+        run: npm run build --if-present
