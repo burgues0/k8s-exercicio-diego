@@ -2,3 +2,4 @@
 .terraform.lock.hcl
 terraform.tfstate*
 floci-api.pem
+.env
