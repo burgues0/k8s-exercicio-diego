@@ -1,0 +1,10 @@
+variable "aws_region" { type = string }
+variable "floci_endpoint" { type = string }
+variable "vpc_cidr" { type = string }
+variable "subnet_a" { type = string }
+variable "subnet_b" { type = string }
+variable "ami_id" { type = string }
+variable "instance_type" { type = string }
+variable "db_name" { type = string }
+variable "db_user" { type = string }
+variable "db_password" { type = string }
