@@ -19,6 +19,14 @@ resource "aws_instance" "gateway" {
     instance_type = var.instance_type
     key_name = aws_key_pair.app_key.key_name
     subnet_id = var.subnet_id
+    user_data = base64encode(<<-EOF
+        #!/bin/bash
+        apt-get update -y
+        apt-get install -y curl openssh-server
+        mkdir -p /run/sshd
+        /usr/sbin/sshd -D &
+    EOF
+    )
 }
 
 resource "aws_instance" "backend" {
@@ -26,4 +34,12 @@ resource "aws_instance" "backend" {
     instance_type = var.instance_type
     key_name = aws_key_pair.app_key.key_name
     subnet_id = var.subnet_id
+    user_data = base64encode(<<-EOF
+        #!/bin/bash
+        apt-get update -y
+        apt-get install -y curl openssh-server
+        mkdir -p /run/sshd
+        /usr/sbin/sshd -D &
+    EOF
+    )
 }
