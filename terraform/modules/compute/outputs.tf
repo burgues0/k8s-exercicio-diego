@@ -3,7 +3,7 @@ output "gateway_public_ip" {
 }
 
 output "backend_private_key_path" {
-    value = local_file.backend_private_key.filename
+    value = local_sensitive_file.backend_private_key.filename
 }
 
 output "backend_port" {
