@@ -40,9 +40,14 @@ resource "local_sensitive_file" "backend_private_key" {
     file_permission = "0600"
 }
 
+resource "docker_image" "ubuntu" {
+    name = "ubuntu:22.04"
+    keep_locally = false
+}
+
 resource "docker_container" "backend" {
     name = "simulated-backend"
-    image = "ubuntu:22.04"
+    image = docker_image.ubuntu.image_id
     privileged = true
 
     ports {
@@ -51,16 +56,8 @@ resource "docker_container" "backend" {
     }
 
     command = ["/bin/bash", "-c", <<-EOF
-        apt-get update -y &&
-        apt-get install -y openssh-server curl gnupg ca-certificates lsb-release iptables &&
-
-        install -m 0755 -d /etc/apt/keyrings &&
-        curl -fsSL https://download.docker.com/linux/ubuntu/gpg | gpg --dearmor -o /etc/apt/keyrings/docker.gpg &&
-        chmod a+r /etc/apt/keyrings/docker.gpg &&
-        echo "deb [arch=$(dpkg --print-architecture) signed-by=/etc/apt/keyrings/docker.gpg] https://download.docker.com/linux/ubuntu jammy stable" > /etc/apt/sources.list.d/docker.list &&
-        apt-get update -y &&
-        apt-get install -y docker-ce docker-ce-cli containerd.io &&
-
+        apt update -y &&
+        apt install -y ca-certificates curl openssh-server &&
         mkdir -p /root/.ssh &&
         echo '${tls_private_key.backend_key.public_key_openssh}' > /root/.ssh/authorized_keys &&
         chmod 700 /root/.ssh &&
@@ -69,8 +66,6 @@ resource "docker_container" "backend" {
         sed -i 's/#PubkeyAuthentication.*/PubkeyAuthentication yes/' /etc/ssh/sshd_config &&
         sed -i 's/PasswordAuthentication yes/PasswordAuthentication no/' /etc/ssh/sshd_config &&
         mkdir -p /run/sshd &&
-        containerd &
-        dockerd &
         /usr/sbin/sshd -D
     EOF
     ]
