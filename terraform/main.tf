@@ -12,6 +12,10 @@ terraform {
         source = "hashicorp/local"
         version = "~> 2.0"
         }
+        docker = {
+        source = "kreuzwerker/docker"
+        version = "~> 3.0"
+        }
     }
 }
 
@@ -29,6 +33,10 @@ provider "aws" {
         sts = var.floci_endpoint
         iam = var.floci_endpoint
     }
+}
+
+provider "docker" {
+    host = "unix:///var/run/docker.sock"
 }
 
 module "network" {
