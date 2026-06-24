@@ -1,0 +1,96 @@
+- name: deploy docker no backend simulado
+  hosts: backend_server
+  become: true
+  vars:
+    docker_image_name: "dockerhub-images"
+    docker_image_tag: "backend-220761e8bc6f6c404b6014a5ae007b17ecc1ebd6"
+    container_name: "api_backend"
+    app_port_host: "3000"
+    app_port_container: "3000"
+
+  tasks:
+    - name: add keyring
+      shell: |
+        install -m 0755 -d /etc/apt/keyrings
+        curl -fsSL https://download.docker.com/linux/ubuntu/gpg -o /etc/apt/keyrings/docker.asc
+        chmod a+r /etc/apt/keyrings/docker.asc
+      args:
+        creates: /etc/apt/keyrings/docker.asc
+
+    - name: add apt docker
+      shell: |
+        printf 'Types: deb\nURIs: https://download.docker.com/linux/ubuntu\nSuites: jammy\nComponents: stable\nArchitectures: amd64\nSigned-By: /etc/apt/keyrings/docker.asc\n' > /etc/apt/sources.list.d/docker.sources
+      args:
+        creates: /etc/apt/sources.list.d/docker.sources
+
+    - name: instalar docker
+      apt:
+        name:
+          - docker-ce
+          - docker-ce-cli
+          - containerd.io
+        state: present
+        update_cache: yes
+
+    - name: trocar storage driver
+      copy:
+        dest: /etc/docker/daemon.json
+        content: |
+          {
+            "storage-driver": "vfs",
+            "features": {
+              "containerd-snapshotter": false
+            }
+          }
+
+    - name: iniciar containerd
+      shell: nohup containerd > /var/log/containerd.log 2>&1 &
+
+    - name: iniciar dockerd
+      shell: nohup dockerd > /var/log/dockerd.log 2>&1 &
+
+    - name: instalar deps
+      apt:
+        name:
+          - python3-pip
+          - python3-setuptools
+        state: present
+        update_cache: yes
+
+    - name: instalar pacotes pip
+      pip:
+        name:
+          - requests
+          - docker
+        state: present
+
+    - name: docker login
+      community.docker.docker_login:
+        username: "{{ docker_registry_user }}"
+        password: "{{ docker_registry_password }}"
+
+    - name: remover container antigo
+      community.docker.docker_container:
+        name: "{{ container_name }}"
+        state: absent
+
+    - name: docker pull e run
+      community.docker.docker_container:
+        name: "{{ container_name }}"
+        image: "{{ docker_registry_user }}/{{ docker_image_name }}:{{ docker_image_tag }}"
+        state: started
+        restart_policy: always
+        pull: always
+        published_ports:
+          - "{{ app_port_host }}:{{ app_port_container }}"
+        env:
+          NODE_ENV: "production"
+          DB_HOST: "floci-rds-terraform-20260623031948766800000001"
+          DB_PORT: "5432"
+          DB_DATABASE: "app_database"
+          DB_USER: "postgres"
+          DB_PASSWORD: "postgres"
+
+    - name: docker logout
+      community.docker.docker_login:
+        state: absent
