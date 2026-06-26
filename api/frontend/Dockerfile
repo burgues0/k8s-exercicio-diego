@@ -8,9 +8,7 @@ RUN npm install
 
 COPY . .
 
-RUN printf 'export default function Loading() { return null; }\n' > src/app/login/loading.tsx
-
-RUN npm run build
+RUN printf 'export default function Loading() { return null; }\n' > src/app/login/loading.tsx && npm run build
 
 EXPOSE 3002
 
