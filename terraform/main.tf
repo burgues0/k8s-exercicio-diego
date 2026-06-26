@@ -51,6 +51,7 @@ module "compute" {
     ami_id = var.ami_id
     instance_type = var.instance_type
     subnet_id = module.network.subnet_a_id
+    vpc_id = module.network.vpc_id
 }
 
 module "database" {
