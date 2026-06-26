@@ -1,0 +1,96 @@
+- name: configurar nginx no gateway
+  hosts: gateway_server
+  become: true
+  tasks:
+    - name: instalar nginx
+      apt:
+        name: nginx
+        state: present
+        update_cache: yes
+
+    - name: configurar nginx
+      copy:
+        dest: /etc/nginx/sites-available/api_gateway
+        content: |
+          server {
+              listen 5000;
+
+              location /auth/ {
+                  proxy_pass http://172.17.0.1:8080;
+                  proxy_set_header Host hmg.local;
+                  proxy_http_version 1.1;
+                  proxy_set_header X-Real-IP $remote_addr;
+                  proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for;
+                  proxy_hide_header Access-Control-Allow-Origin;
+                  proxy_hide_header Access-Control-Allow-Credentials;
+                  add_header Access-Control-Allow-Origin $http_origin always;
+                  add_header Access-Control-Allow-Credentials true always;
+                  add_header Access-Control-Allow-Methods 'GET, POST, PUT, DELETE, PATCH, OPTIONS' always;
+                  add_header Access-Control-Allow-Headers 'Content-Type, Authorization' always;
+
+                  if ($request_method = 'OPTIONS') {
+                      return 204;
+                  }
+              }
+
+              location /api/ {
+                  proxy_pass http://172.17.0.2:3000;
+                  proxy_http_version 1.1;
+                  proxy_set_header X-Real-IP $remote_addr;
+                  proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for;
+                  proxy_set_header Host $host;
+                  proxy_hide_header Access-Control-Allow-Origin;
+                  add_header Access-Control-Allow-Origin $http_origin always;
+                  add_header Access-Control-Allow-Credentials true always;
+                  add_header Access-Control-Allow-Methods 'GET, POST, PUT, DELETE, PATCH, OPTIONS' always;
+                  add_header Access-Control-Allow-Headers 'Content-Type, Authorization' always;
+
+                  if ($request_method = 'OPTIONS') {
+                      return 204;
+                  }
+              }
+
+              location / {
+                  proxy_pass http://172.17.0.1:8080;
+                  proxy_set_header Host hmg.local;
+                  proxy_http_version 1.1;
+                  proxy_set_header Upgrade $http_upgrade;
+                  proxy_set_header Connection 'upgrade';
+                  proxy_set_header X-Real-IP $remote_addr;
+                  proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for;
+                  proxy_cache_bypass $http_upgrade;
+              }
+          }
+
+    - name: symlink
+      file:
+        src: /etc/nginx/sites-available/api_gateway
+        dest: /etc/nginx/sites-enabled/api_gateway
+        state: link
+
+    - name: remover config padrao
+      file:
+        path: /etc/nginx/sites-enabled/default
+        state: absent
+
+    - name: reiniciar nginx
+      service:
+        name: nginx
+        state: restarted
+        enabled: yes
+
+- name: 5000 gateway -> localhost (bypass maluco do floci)
+  hosts: localhost
+  connection: local
+  become: false
+  gather_facts: false
+  tasks:
+    - name: pegar ip do container
+      shell: docker inspect $(docker ps --format '{% raw %}{{.Names}}{% endraw %}' | grep floci-ec2 | head -1) --format '{% raw %}{{range .NetworkSettings.Networks}}{{.IPAddress}}{{end}}{% endraw %}'
+      register: gateway_ip
+
+    - name: matar socat anterior
+      shell: pkill -x socat 2>/dev/null || true
+
+    - name: socat localhost:5000 -> gateway:5000
+      shell: "nohup socat TCP-LISTEN:5000,fork,reuseaddr TCP:{{ gateway_ip.stdout }}:5000 &"
