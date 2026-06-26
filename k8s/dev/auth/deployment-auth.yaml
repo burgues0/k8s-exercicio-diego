@@ -1,0 +1,81 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: api-node-auth
+  namespace: ns-dev
+spec:
+  replicas: 2
+  strategy:
+    type: RollingUpdate
+    rollingUpdate:
+      maxSurge: 1
+      maxUnavailable: 0
+  selector:
+    matchLabels:
+      app: api-node-auth
+  template:
+    metadata:
+      labels:
+        app: api-node-auth
+    spec:
+      imagePullSecrets:
+        - name: dockerhub-secret
+      affinity:
+        nodeAffinity:
+          requiredDuringSchedulingIgnoredDuringExecution:
+            nodeSelectorTerms:
+              - matchExpressions:
+                  - key: ambiente
+                    operator: In
+                    values:
+                      - dev
+      containers:
+      - name: api-node-auth
+        image: burgues/dockerhub-images:auth-api-220761e8bc6f6c404b6014a5ae007b17ecc1ebd6
+        imagePullPolicy: IfNotPresent
+        ports:
+        - containerPort: 3001
+        resources:
+          requests:
+            cpu: "100m"
+            memory: "100Mi"
+          limits:
+            cpu: "300m"
+            memory: "256Mi"
+        livenessProbe:
+          httpGet:
+            path: /api-docs
+            port: 3001
+          initialDelaySeconds: 20
+          periodSeconds: 20
+          failureThreshold: 3
+        readinessProbe:
+          httpGet:
+            path: /api-docs
+            port: 3001
+          initialDelaySeconds: 10
+          periodSeconds: 10
+          failureThreshold: 3
+        env:
+        - name: NODE_ENV
+          value: "development"
+        - name: DATABASE_URL
+          valueFrom:
+            secretKeyRef:
+              name: auth-api-secret
+              key: DATABASE_URL
+        - name: JWT_SECRET
+          valueFrom:
+            secretKeyRef:
+              name: auth-api-secret
+              key: JWT_SECRET
+        - name: GMAIL_USER
+          valueFrom:
+            configMapKeyRef:
+              name: auth-api-config
+              key: GMAIL_USER
+        - name: GMAIL_APP_PASSWORD
+          valueFrom:
+            secretKeyRef:
+              name: auth-api-secret
+              key: GMAIL_APP_PASSWORD

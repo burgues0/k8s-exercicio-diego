@@ -1,0 +1,165 @@
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: postgres-config
+  namespace: ns-hmg
+data:
+  POSTGRES_USER: "postgres"
+  POSTGRES_DB: "postgres"
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: postgres-headless
+  namespace: ns-hmg
+spec:
+  clusterIP: None
+  selector:
+    app: postgres
+  ports:
+  - port: 5432
+    targetPort: 5432
+---
+apiVersion: apps/v1
+kind: StatefulSet
+metadata:
+  name: postgres
+  namespace: ns-hmg
+spec:
+  serviceName: postgres-headless
+  replicas: 2
+  selector:
+    matchLabels:
+      app: postgres
+  template:
+    metadata:
+      labels:
+        app: postgres
+    spec:
+      securityContext:
+        fsGroup: 70
+        runAsUser: 70
+        runAsGroup: 70
+      affinity:
+        nodeAffinity:
+          requiredDuringSchedulingIgnoredDuringExecution:
+            nodeSelectorTerms:
+              - matchExpressions:
+                  - key: ambiente
+                    operator: In
+                    values:
+                      - dev
+      initContainers:
+      - name: init-postgres
+        image: postgres:14-alpine
+        env:
+        - name: PGDATA
+          value: /var/lib/postgresql/data/pgdata
+        - name: POSTGRES_PASSWORD
+          valueFrom:
+            secretKeyRef:
+              name: postgres-secret
+              key: POSTGRESQL_PASSWORD
+        - name: REPLICATION_PASSWORD
+          valueFrom:
+            secretKeyRef:
+              name: postgres-secret
+              key: POSTGRESQL_REPLICATION_PASSWORD
+        command:
+        - bash
+        - -ec
+        - |
+          if [[ "$(hostname)" == "postgres-0" ]]; then
+            if [ ! -f "$PGDATA/PG_VERSION" ]; then
+              initdb -D $PGDATA -U postgres
+              cat >> $PGDATA/postgresql.conf <<EOF
+          wal_level = replica
+          max_wal_senders = 10
+          wal_keep_size = 128
+          hot_standby = on
+          EOF
+              echo "host replication replicator 0.0.0.0/0 md5" >> $PGDATA/pg_hba.conf
+              echo "host all all 0.0.0.0/0 trust" >> $PGDATA/pg_hba.conf
+              pg_ctl start -D $PGDATA -o "-c listen_addresses='127.0.0.1'" -w
+              psql -U postgres -c "ALTER USER postgres WITH PASSWORD '${POSTGRES_PASSWORD}';"
+              psql -U postgres -c "CREATE USER replicator WITH REPLICATION ENCRYPTED PASSWORD '${REPLICATION_PASSWORD}';"
+              pg_ctl stop -D $PGDATA -m fast
+            fi
+          else
+            until pg_isready -h postgres-0.postgres-headless -U postgres -q; do
+              echo "aguardando primary..."; sleep 2
+            done
+            if [ ! -f "$PGDATA/PG_VERSION" ]; then
+              PGPASSWORD=$REPLICATION_PASSWORD pg_basebackup \
+                -h postgres-0.postgres-headless \
+                -U replicator \
+                -D $PGDATA \
+                -Fp -Xs -R -P
+            fi
+          fi
+        volumeMounts:
+        - name: postgres-data
+          mountPath: /var/lib/postgresql/data
+      containers:
+      - name: postgres
+        image: postgres:14-alpine
+        ports:
+        - containerPort: 5432
+        env:
+        - name: PGDATA
+          value: /var/lib/postgresql/data/pgdata
+        - name: POSTGRES_USER
+          valueFrom:
+            configMapKeyRef:
+              name: postgres-config
+              key: POSTGRES_USER
+        - name: POSTGRES_DB
+          valueFrom:
+            configMapKeyRef:
+              name: postgres-config
+              key: POSTGRES_DB
+        - name: POSTGRES_PASSWORD
+          valueFrom:
+            secretKeyRef:
+              name: postgres-secret
+              key: POSTGRESQL_PASSWORD
+        resources:
+          requests:
+            cpu: "100m"
+            memory: "100Mi"
+          limits:
+            cpu: "300m"
+            memory: "256Mi"
+        livenessProbe:
+          exec:
+            command:
+            - pg_isready
+            - -U
+            - postgres
+            - -d
+            - postgres
+          initialDelaySeconds: 30
+          periodSeconds: 10
+          failureThreshold: 3
+        readinessProbe:
+          exec:
+            command:
+            - pg_isready
+            - -U
+            - postgres
+            - -d
+            - postgres
+          initialDelaySeconds: 10
+          periodSeconds: 5
+          failureThreshold: 3
+        volumeMounts:
+        - name: postgres-data
+          mountPath: /var/lib/postgresql/data
+  volumeClaimTemplates:
+  - metadata:
+      name: postgres-data
+    spec:
+      accessModes: ["ReadWriteOnce"]
+      resources:
+        requests:
+          storage: 1Gi
