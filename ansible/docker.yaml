@@ -1,3 +1,16 @@
+- name: pre-requisitos de rede para o backend
+  hosts: localhost
+  connection: local
+  become: false
+  gather_facts: false
+  tasks:
+    - name: ponte rede DinD com RDS
+      shell: docker network inspect infra_default | grep -q simulated-backend || docker network connect infra_default simulated-backend
+
+    - name: habilitar forward dind porta 3000 (acesso externo ao api_backend)
+      command: docker exec simulated-backend iptables -I FORWARD -p tcp --dport 3000 -j ACCEPT
+      ignore_errors: true
+
 - name: deploy docker no backend simulado
   hosts: backend_server
   become: true
@@ -85,11 +98,12 @@
           - "{{ app_port_host }}:{{ app_port_container }}"
         env:
           NODE_ENV: "production"
-          DB_HOST: "floci-rds-terraform-20260623031948766800000001"
+          DB_HOST: "172.27.0.6"
           DB_PORT: "5432"
           DB_DATABASE: "app_database"
           DB_USER: "postgres"
           DB_PASSWORD: "postgres"
+          TOKEN_VALIDATOR_API_URL: "http://172.17.0.3:5000/auth/validate"
 
     - name: docker logout
       community.docker.docker_login:
