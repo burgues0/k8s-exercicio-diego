@@ -1,0 +1,18 @@
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: auth-api-config
+  namespace: ns-hmg
+data:
+  GMAIL_USER: "domain.gmail.com"
+---
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: frontend-config
+  namespace: ns-hmg
+data:
+  # URL que o browser do usuário usa para chamar a auth-api
+  # Deve ser o endereço público do gateway + path /auth
+  # Exemplo: http://<IP-DO-GATEWAY>:5000
+  NEXT_PUBLIC_BACKEND_URL: "http://localhost:5000"
