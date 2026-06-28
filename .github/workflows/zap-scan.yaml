@@ -13,7 +13,7 @@ jobs:
     steps:
       - name: run zap
         run: |
-          zap.sh -cmd -quickurl ${{ github.event.inputs.target_url }} -quickout report.html -I
+          zap.sh -cmd -quickurl ${{ github.event.inputs.target_url }} -quickout report.html
 
       - name: upload report
         uses: actions/upload-artifact@v4
