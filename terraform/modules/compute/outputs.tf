@@ -9,3 +9,11 @@ output "backend_private_key_path" {
 output "backend_port" {
     value = 2301
 }
+
+output "backend_2_private_key_path" {
+    value = local_sensitive_file.backend_2_private_key.filename
+}
+
+output "backend_2_port" {
+    value = 2302
+}

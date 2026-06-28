@@ -9,6 +9,14 @@ output "backend_port" {
     value = module.compute.backend_port
 }
 
+output "backend_2_private_key_path" {
+    value = module.compute.backend_2_private_key_path
+}
+
+output "backend_2_port" {
+    value = module.compute.backend_2_port
+}
+
 output "rds_endpoint" {
     value = module.database.rds_endpoint
 }

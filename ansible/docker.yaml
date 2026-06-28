@@ -4,15 +4,18 @@
   become: false
   gather_facts: false
   tasks:
-    - name: ponte rede DinD com RDS
+    - name: ponte rede DinD com RDS main
       shell: docker network inspect infra_default | grep -q simulated-backend || docker network connect infra_default simulated-backend
 
-    - name: habilitar forward dind porta 3000 (acesso externo ao api_backend)
-      command: docker exec simulated-backend iptables -I FORWARD -p tcp --dport 3000 -j ACCEPT
-      ignore_errors: true
+    - name: ponte rede DinD com RDS backup
+      shell: docker network inspect infra_default | grep -q simulated-backend-2 || docker network connect infra_default simulated-backend-2
+
+    - name: ip gateway
+      shell: docker inspect $(docker ps --format '{% raw %}{{.Names}}{% endraw %}' | grep floci-ec2 | head -1) --format '{% raw %}{{(index .NetworkSettings.Networks "bridge").IPAddress}}{% endraw %}'
+      register: gateway_ip
 
 - name: deploy docker no backend simulado
-  hosts: backend_server
+  hosts: backend_server,backend_server_2
   become: true
   vars:
     docker_image_name: "dockerhub-images"
@@ -20,6 +23,7 @@
     container_name: "api_backend"
     app_port_host: "3000"
     app_port_container: "3000"
+    gateway_ip: "{{ hostvars['localhost']['gateway_ip'].stdout }}"
 
   tasks:
     - name: add keyring
@@ -103,8 +107,20 @@
           DB_DATABASE: "app_database"
           DB_USER: "postgres"
           DB_PASSWORD: "postgres"
-          TOKEN_VALIDATOR_API_URL: "http://172.17.0.3:5000/auth/validate"
+          TOKEN_VALIDATOR_API_URL: "http://{{ gateway_ip }}:5000/auth/validate"
 
     - name: docker logout
       community.docker.docker_login:
         state: absent
+
+- name: fix iptables
+  hosts: localhost
+  connection: local
+  become: false
+  gather_facts: false
+  tasks:
+    - name: habilitar forward dind porta 3000 main
+      command: docker exec simulated-backend iptables -I FORWARD -p tcp --dport 3000 -j ACCEPT
+
+    - name: habilitar forward dind porta 3000 backup
+      command: docker exec simulated-backend-2 iptables -I FORWARD -p tcp --dport 3000 -j ACCEPT
