@@ -1,6 +1,6 @@
 FROM ubuntu:22.04
 
-RUN apt-get update && apt-get install -y openssh-server curl
+RUN apt-get update && apt-get install -y openssh-server curl unzip
 
 RUN mkdir /var/run/sshd \
     && echo 'root:root' | chpasswd \

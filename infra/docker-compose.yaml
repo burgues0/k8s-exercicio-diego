@@ -33,6 +33,25 @@ services:
       - sonarqube_extensions:/opt/sonarqube/extensions
     restart: unless-stopped
 
+  floci:
+    image: floci/floci:1.5.21
+    container_name: floci
+    privileged: true
+    user: root
+    ports:
+      - "4566:4566"
+    volumes:
+      - /var/run/docker.sock:/var/run/docker.sock
+    environment:
+      - FLOCI_SERVICES_EC2_SSH_PORT_RANGE_START=2300
+      - FLOCI_SERVICES_EC2_SSH_PORT_RANGE_END=2399
+    healthcheck:
+      test: ["CMD-SHELL", "curl -sf http://localhost:4566/ > /dev/null 2>&1; exit 0"]
+      interval: 5s
+      timeout: 10s
+      retries: 20
+      start_period: 15s
+
 volumes:
   postgres_data:
   sonarqube_data:

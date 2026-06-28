@@ -1,0 +1,28 @@
+name: owasp zap
+
+on:
+  workflow_dispatch:
+    inputs:
+      target_url:
+        required: false
+        default: "http://localhost:5000"
+
+jobs:
+  zap-scan:
+    runs-on: self-hosted
+    steps:
+      - name: run zap
+        run: |
+          docker run --rm --network host \
+            -v $(pwd)/zap-report:/zap/wrk/:rw \
+            ghcr.io/zaproxy/zaproxy:stable zap-baseline.py \
+            -t ${{ github.event.inputs.target_url }} \
+            -r zap-report.html \
+            -I
+
+      - name: upload report
+        uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: zap-report
+          path: zap-report/zap-report.html

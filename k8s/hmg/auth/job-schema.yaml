@@ -1,0 +1,47 @@
+apiVersion: batch/v1
+kind: Job
+metadata:
+  name: auth-schema-init
+  namespace: ns-hmg
+spec:
+  ttlSecondsAfterFinished: 60
+  template:
+    spec:
+      restartPolicy: OnFailure
+      containers:
+      - name: schema-init
+        image: postgres:14-alpine
+        command:
+        - sh
+        - -c
+        - |
+          psql $DATABASE_URL -c "
+            CREATE EXTENSION IF NOT EXISTS pgcrypto;
+            CREATE TABLE IF NOT EXISTS usuarios (
+              id SERIAL PRIMARY KEY,
+              nome VARCHAR(255) NOT NULL,
+              email VARCHAR(255) UNIQUE NOT NULL,
+              senha VARCHAR(255) NOT NULL,
+              is_active BOOLEAN DEFAULT true,
+              last_login TIMESTAMP
+            );
+            CREATE TABLE IF NOT EXISTS auditoria_logs (
+              id SERIAL PRIMARY KEY,
+              usuario_email VARCHAR(255),
+              acao VARCHAR(255),
+              tabela_afetada VARCHAR(255),
+              dados_anteriores TEXT,
+              dados_novos TEXT,
+              user_agent TEXT,
+              created_at TIMESTAMP DEFAULT NOW()
+            );
+            INSERT INTO usuarios (nome, email, senha) VALUES
+              ('Admin', 'admin@test.com', crypt('admin123', gen_salt('bf', 10)))
+            ON CONFLICT (email) DO NOTHING;
+          "
+        env:
+        - name: DATABASE_URL
+          valueFrom:
+            secretKeyRef:
+              name: auth-api-secret
+              key: DATABASE_URL

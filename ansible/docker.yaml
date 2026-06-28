@@ -1,0 +1,126 @@
+- name: pre-requisitos de rede para o backend
+  hosts: localhost
+  connection: local
+  become: false
+  gather_facts: false
+  tasks:
+    - name: ponte rede DinD com RDS main
+      shell: docker network inspect infra_default | grep -q simulated-backend || docker network connect infra_default simulated-backend
+
+    - name: ponte rede DinD com RDS backup
+      shell: docker network inspect infra_default | grep -q simulated-backend-2 || docker network connect infra_default simulated-backend-2
+
+    - name: ip gateway
+      shell: docker inspect $(docker ps --format '{% raw %}{{.Names}}{% endraw %}' | grep floci-ec2 | head -1) --format '{% raw %}{{(index .NetworkSettings.Networks "bridge").IPAddress}}{% endraw %}'
+      register: gateway_ip
+
+- name: deploy docker no backend simulado
+  hosts: backend_server,backend_server_2
+  become: true
+  vars:
+    docker_image_name: "dockerhub-images"
+    docker_image_tag: "backend-220761e8bc6f6c404b6014a5ae007b17ecc1ebd6"
+    container_name: "api_backend"
+    app_port_host: "3000"
+    app_port_container: "3000"
+    gateway_ip: "{{ hostvars['localhost']['gateway_ip'].stdout }}"
+
+  tasks:
+    - name: add keyring
+      shell: |
+        install -m 0755 -d /etc/apt/keyrings
+        curl -fsSL https://download.docker.com/linux/ubuntu/gpg -o /etc/apt/keyrings/docker.asc
+        chmod a+r /etc/apt/keyrings/docker.asc
+      args:
+        creates: /etc/apt/keyrings/docker.asc
+
+    - name: add apt docker
+      shell: |
+        printf 'Types: deb\nURIs: https://download.docker.com/linux/ubuntu\nSuites: jammy\nComponents: stable\nArchitectures: amd64\nSigned-By: /etc/apt/keyrings/docker.asc\n' > /etc/apt/sources.list.d/docker.sources
+      args:
+        creates: /etc/apt/sources.list.d/docker.sources
+
+    - name: instalar docker
+      apt:
+        name:
+          - docker-ce
+          - docker-ce-cli
+          - containerd.io
+        state: present
+        update_cache: yes
+
+    - name: trocar storage driver
+      copy:
+        dest: /etc/docker/daemon.json
+        content: |
+          {
+            "storage-driver": "vfs",
+            "features": {
+              "containerd-snapshotter": false
+            }
+          }
+
+    - name: iniciar containerd
+      shell: nohup containerd > /var/log/containerd.log 2>&1 &
+
+    - name: iniciar dockerd
+      shell: nohup dockerd > /var/log/dockerd.log 2>&1 &
+
+    - name: instalar deps
+      apt:
+        name:
+          - python3-pip
+          - python3-setuptools
+        state: present
+        update_cache: yes
+
+    - name: instalar pacotes pip
+      pip:
+        name:
+          - requests
+          - docker
+        state: present
+
+    - name: docker login
+      community.docker.docker_login:
+        username: "{{ docker_registry_user }}"
+        password: "{{ docker_registry_password }}"
+
+    - name: remover container antigo
+      community.docker.docker_container:
+        name: "{{ container_name }}"
+        state: absent
+
+    - name: docker pull e run
+      community.docker.docker_container:
+        name: "{{ container_name }}"
+        image: "{{ docker_registry_user }}/{{ docker_image_name }}:{{ docker_image_tag }}"
+        state: started
+        restart_policy: always
+        pull: always
+        published_ports:
+          - "{{ app_port_host }}:{{ app_port_container }}"
+        env:
+          NODE_ENV: "production"
+          DB_HOST: "172.27.0.6"
+          DB_PORT: "5432"
+          DB_DATABASE: "app_database"
+          DB_USER: "postgres"
+          DB_PASSWORD: "postgres"
+          TOKEN_VALIDATOR_API_URL: "http://{{ gateway_ip }}:5000/auth/validate"
+
+    - name: docker logout
+      community.docker.docker_login:
+        state: absent
+
+- name: fix iptables
+  hosts: localhost
+  connection: local
+  become: false
+  gather_facts: false
+  tasks:
+    - name: habilitar forward dind porta 3000 main
+      command: docker exec simulated-backend iptables -I FORWARD -p tcp --dport 3000 -j ACCEPT
+
+    - name: habilitar forward dind porta 3000 backup
+      command: docker exec simulated-backend-2 iptables -I FORWARD -p tcp --dport 3000 -j ACCEPT
