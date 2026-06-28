@@ -13,16 +13,11 @@ jobs:
     steps:
       - name: run zap
         run: |
-          docker run --rm --network host \
-            -v $(pwd)/zap-report:/zap/wrk/:rw \
-            ghcr.io/zaproxy/zaproxy:stable zap-baseline.py \
-            -t ${{ github.event.inputs.target_url }} \
-            -r zap-report.html \
-            -I
+          zap.sh -cmd -quickurl ${{ github.event.inputs.target_url }} -quickout report.html
 
       - name: upload report
         uses: actions/upload-artifact@v4
         if: always()
         with:
           name: zap-report
-          path: zap-report/zap-report.html
+          path: report.html
